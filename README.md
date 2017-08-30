@@ -56,7 +56,7 @@ This application can store and serve secret messages based on a unique hash for 
 
 ### Usage
 
-- #####Creating a secret:
+- ##### Creating a secret:
 
  Post an json data to `http://yourdomain.com/secret` path with the following data structure:
 
@@ -68,7 +68,7 @@ This application can store and serve secret messages based on a unique hash for 
 }
  ```
 
- #####Response:
+ ##### Response:
 
  ```
  {
@@ -80,11 +80,11 @@ This application can store and serve secret messages based on a unique hash for 
  }
  ```
 
-- #####View a secret:
+- ##### View a secret:
 
  Access the following url: `http://yourdomain.com/secret/3a323c7ebeed939a2c74ec4f383f4c1c`
 
- #####Response
+ ##### Response
 
   ```
  {
