@@ -86,8 +86,10 @@ class SecretsController extends Controller
     $results = DB::table('secrets')
                 ->where('hash', $hash)
                 ->where('remainingViews', '>', 0)
-                ->where('expiresAt', '>', $current_time)
-                ->orWhere('expiresAt', '=', 0)
+                ->where(function($query) use ($current_time) {
+                  $query->where('expiresAt', '>', $current_time)
+                        ->orWhere('expiresAt', '=', 0);
+                })
                 ->get();
 
     if ($results->count()) {
