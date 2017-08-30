@@ -1,0 +1,15 @@
+{
+    "name": "lbesenyei/secrets",
+    "description": "Secret server",
+    "type": "laravel-package",
+    "require": {
+        "laravel/laravel": "5.4"
+    },
+    "authors": [
+        {
+            "name": "Levente Besenyei",
+            "email": "besenyei.levente@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+}
