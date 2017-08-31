@@ -35,7 +35,7 @@ This application can store and serve secret messages based on a unique hash for 
 
 4. Dump composer autoload
 
- `composer dump autoload`
+ `composer dump-autoload`
 
 5. Add `Lbesenyei\Secrets\SecretsServiceProvider::class` to the `config/app.php` file
 
