@@ -7,9 +7,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
+use Orchestra\Parser\Xml\Facade as XmlParser;
 
 class SecretsController extends Controller
 {
+
   /**
    * Store a newly created resource in storage.
    *
@@ -17,57 +19,54 @@ class SecretsController extends Controller
    */
   public function store(Request $request)
   {
-    try {
-      // Post validation
-      $this->validate($request, [
-        'secret' => 'required|max:255',
-        'expireAfter' => 'integer|min:0',
-        'expireAfterViews' => 'required|integer|min:0'
-      ]);
-    } catch (ValidationException $e) {
-      // Return validation fail message
-      return \Response::json('Invalid input', 405);
+
+    switch ($request->header('Content-Type')) {
+      case 'application/xml':
+        // Parse XML Output
+        $xml = XmlParser::extract($request->getContent());
+        $post_data = $xml->parse([
+          'secret' => ['uses' => 'secret'],
+          'expireAfter' => ['uses' => 'expireAfter'],
+          'expireAfterViews' => ['uses' => 'expireAfterViews']
+        ]);
+
+        break;
+
+      case 'application/json':
+        $post_data = $request->all();
+        break;
+
+      default:
+        return response('Invalid input', 405);
+        break;
     }
 
-    // Get post data and current UNIX timestamp
-    $content = $request->all();
-    $current_time = Carbon::now()->getTimestamp();
+    // Define Validation for posted data
+    $validator = \Validator::make($post_data, [
+      'secret' => 'required|max:255',
+      'expireAfter' => 'nullable|integer|min:0',
+      'expireAfterViews' => 'required|integer|min:0'
+    ]);
 
-    // Generate unique hash based on text, time and an incremental value
-    // to avoid duplicates (same secret taxt posted at the same time)
-    $i = 0;
-    do {
-      $hash = md5($content['secret'] . $current_time . $i);
-      $results = DB::table('secrets')
-                ->where('hash', $hash)
-                ->get();
-
-      $i++;
-    } while($results->count());
-
-    // Generate expiration date UNIX timestamp
-    // based on expireAfter value (if given)
-
-    if (isset($content['expireAfter']) && $content['expireAfter'] > 0) {
-      $expiration_date =  $current_time + ($content['expireAfter'] * 60);
-    } else {
-      $expiration_date =  0;
+    if ($validator->fails()) {
+      return response('Invalid input', 405);
     }
 
-    // Build new database record
-    $secret = [
-      'hash' => $hash,
-      'secretText' => $content['secret'],
-      'createdAt' => $current_time,
-      'expiresAt' => $expiration_date,
-      'remainingViews' => $content['expireAfterViews']
-    ];
+    // Create new Secret
+    $secret = new Secret($post_data);
 
-    // Insert record to database
-    DB::table('secrets')->insert($secret);
+    $secret->save();
 
-    // Return successful response
-    return \Response::json($secret, 200);
+    // Return output depending on Content-Type
+    switch ($request->header('Content-Type')) {
+      case 'application/xml':
+        return view('secrets::secret', ['secret' => $secret]);
+        break;
+
+      default:
+        return \Response::json($secret, 200);
+        break;
+    }
   }
 
   /*
@@ -76,36 +75,30 @@ class SecretsController extends Controller
    * @param  int  $hash
    * @return Response
    */
-  public function show($hash)
+  public function show($hash, Request $request)
   {
-    // Generate current UNIX timestamp
-    $current_time = Carbon::now()->getTimestamp();
+    $secret = Secret::byHash($hash);
 
-    // Search for secret with matching hash that has no longer expired
-    // and has views remaining
-    $results = DB::table('secrets')
-                ->where('hash', $hash)
-                ->where('remainingViews', '>', 0)
-                ->where(function($query) use ($current_time) {
-                  $query->where('expiresAt', '>', $current_time)
-                        ->orWhere('expiresAt', '=', 0);
-                })
-                ->get();
-
-    if ($results->count()) {
+    if ($secret) {
       // Fetch result and update remaining views counter
-      $secret = $results->first();
+      $secret->remainingViews = $secret->remainingViews - 1;
 
-      DB::table('secrets')
-        ->where('hash', $hash)
-        ->update(['remainingViews' => $secret->remainingViews - 1]);
+      $secret->save();
 
+      // Return output depending on Content-Type
+      switch ($request->header('Content-Type')) {
+        case 'application/xml':
+          return view('secrets::secret', ['secret' => $secret]);
+          break;
+
+        default:
+          return \Response::json($secret, 200);
+          break;
+      }
       // Return response containing secret
-      return \Response::json($secret, 200);
     } else {
       // Return secret not found error message
-      return \Response::json('Secret not found', 404);
+      return response('Secret not found', 404);
     }
-
   }
 }

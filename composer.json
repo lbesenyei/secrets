@@ -3,7 +3,8 @@
     "description": "Secret server",
     "type": "laravel-package",
     "require": {
-        "laravel/laravel": "5.4"
+        "laravel/laravel": "5.4",
+        "orchestra/parser": "3.0"
     },
     "authors": [
         {
